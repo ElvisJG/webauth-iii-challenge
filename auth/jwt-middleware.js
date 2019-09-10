@@ -1,4 +1,11 @@
-module.exports = function generateToken(user) {
+const jwt = require('jsonwebtoken');
+
+module.exports = {
+  generateToken,
+  restrict
+};
+
+function generateToken(user) {
   const payload = {
     subject: user.id, // subject is required
     username: user.username // This sends the username, it is not required
@@ -9,12 +16,25 @@ module.exports = function generateToken(user) {
     expiresIn: '8h'
   };
   return jwt.sign(payload, process.env.SECRET, options);
-};
+}
 
-module.exports = function restrict(req, res, next) {
-  if (req.session && req.session.user) {
-    next();
+function restrict(req, res, next) {
+  const token = req.headers.authorization;
+
+  if (token) {
+    jwt.verify(token, process.env.SECRET, (err, decodedToken) => {
+      if (err) {
+        res.status(401).json({
+          message: 'not verified'
+        });
+      } else {
+        req.decodedToken = decodedToken;
+        next();
+      }
+    });
   } else {
-    res.status(401).json({ message: 'Whoa There Cowboy, Invalid Credentials' });
+    res.status(400).json({
+      message: 'no token provided'
+    });
   }
-};
+}
